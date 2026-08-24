@@ -1,0 +1,10 @@
+node_modules
+dist
+out
+coverage
+*.vsix
+.vscode-test
+*.log
+logs
+.DS_Store
+.claude/settings.local.json
