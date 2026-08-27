@@ -1,0 +1,92 @@
+{
+  "activationEvents": [],
+  "author": "jjloneman",
+  "bin": {
+    "commentsmith": "./dist/cli.cjs"
+  },
+  "bugs": "https://github.com/jjloneman/commentsmith/issues",
+  "categories": [
+    "Formatters",
+    "Programming Languages",
+    "Other"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "category": "Commentsmith",
+        "command": "commentsmith.format",
+        "title": "Format Comment"
+      }
+    ]
+  },
+  "description": "A configurable comment formatter for VS Code and the command line — reshape block, line, and JSDoc comments to a style you define",
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@tsconfig/node-lts": "24.0.1",
+    "@types/node": "26.2.0",
+    "@types/vscode": "1.103.0",
+    "@vitest/coverage-v8": "4.1.10",
+    "esbuild": "0.28.2",
+    "eslint": "10.8.1",
+    "eslint-import-resolver-typescript": "4.4.5",
+    "eslint-plugin-import-x": "4.17.1",
+    "eslint-plugin-perfectionist": "5.10.1",
+    "globals": "17.11.0",
+    "jiti": "2.7.0",
+    "prettier": "3.9.6",
+    "prettier-plugin-sh": "0.19.0",
+    "sh-syntax": "0.6.0",
+    "tsx": "4.23.12",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.67.0",
+    "vitest": "4.1.10"
+  },
+  "displayName": "Commentsmith",
+  "engines": {
+    "node": ">=26",
+    "vscode": "^1.103.0"
+  },
+  "galleryBanner": {
+    "color": "#1f2430",
+    "theme": "dark"
+  },
+  "homepage": "https://github.com/jjloneman/commentsmith#readme",
+  "icon": "assets/icon.png",
+  "imports": {
+    "#core/*": "./src/core/*.ts",
+    "#test/*": "./test/*.ts"
+  },
+  "keywords": [
+    "comment",
+    "jsdoc",
+    "docblock",
+    "formatter",
+    "rewrap"
+  ],
+  "license": "MIT",
+  "main": "./dist/extension.cjs",
+  "name": "commentsmith",
+  "packageManager": "pnpm@11.22.0",
+  "publisher": "jjloneman",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jjloneman/commentsmith.git"
+  },
+  "scripts": {
+    "build": "tsx esbuild.config.ts",
+    "check": "pnpm lint:fix && pnpm format && pnpm typecheck && pnpm check:host-target",
+    "check:host-target": "tsx scripts/check-extension-host-target.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "prepare": "git config core.hooksPath .githooks || true",
+    "prune-branches": "git fetch --prune && pnpm dlx git-removed-branches --force --prune",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}
