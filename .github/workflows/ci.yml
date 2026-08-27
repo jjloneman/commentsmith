@@ -1,0 +1,73 @@
+name: ☁️ CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+      # Write access for adding the code coverage comment in PRs
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: pnpm/action-setup@v6.0.10
+        with:
+          cache: true
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 26
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm format:check
+
+      # Verifies the esbuild target still matches the Node version the oldest
+      # supported VS Code actually runs (see
+      # scripts/lib/extension-host-target.ts). Network failures warn rather than
+      # fail, so an upstream outage can't break CI.
+      - run: pnpm check:host-target
+
+      # Coverage only on PRs, where it feeds the report comment below; plain
+      # tests on main pushes, where nothing consumes the report.
+      - if: github.event_name != 'pull_request'
+        run: pnpm test
+
+      - if: github.event_name == 'pull_request'
+        run: pnpm test:coverage
+
+      # Proves both bundles still emit — the extension bundle in particular,
+      # since a stray `vscode` import outside src/extension would only surface
+      # here.
+      - run: pnpm build
+
+      # The HTML report is the drill-down the PR comment's table can't provide.
+      # Uploading it makes `artifact-url` available to link from that comment,
+      # with no external coverage service involved.
+      - name: 📦 Upload coverage report
+        id: coverage-artifact
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+      # Report-only: renders coverage-summary.json to a Markdown table plus the
+      # text reporter's per-file output in a <details> block, writes the job
+      # summary, and upserts a sticky PR comment via the GitHub API.
+      # Self-contained (no marketplace action); never fails the build.
+      - name: 📊 Coverage PR comment
+        if: github.event_name == 'pull_request'
+        run: pnpm exec tsx scripts/post-coverage-pr-comment.ts
+        env:
+          COVERAGE_ARTIFACT_URL:
+            ${{ steps.coverage-artifact.outputs.artifact-url }}
+          GH_TOKEN: ${{ github.token }}
