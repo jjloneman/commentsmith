@@ -1,0 +1,24 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "pnpm: build",
+      "type": "shell",
+      "command": "pnpm build",
+      "group": { "kind": "build", "isDefault": true },
+      // esbuild is not one of VS Code's built-in problem matchers, and it
+      // already prints its own diagnostics with file/line — an empty list
+      // silences the "not accepted" warning without losing anything.
+      "problemMatcher": []
+    },
+    {
+      "label": "pnpm: build --watch",
+      "type": "shell",
+      // `type: "npm"` tasks accept no `args`, so the flag is part of the
+      // command; pnpm forwards trailing arguments to the underlying script.
+      "command": "pnpm build --watch",
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}
