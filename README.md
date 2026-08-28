@@ -113,7 +113,13 @@ pnpm build
 ```
 
 Press <kbd>F5</kbd> to launch an Extension Development Host with the extension
-loaded.
+loaded. On a Mac the top row sends hardware controls by default, so that is
+<kbd>fn</kbd>+<kbd>F5</kbd> — or run **Debug: Start Debugging** from the command
+palette (<kbd>⇧⌘P</kbd>), which needs no function key at all.
+
+In the host window, _Commentsmith: Format Comment_ should appear in the command
+palette, and the **Commentsmith** entry in the Output panel should carry the
+activation log.
 
 ### 📜 Scripts
 
