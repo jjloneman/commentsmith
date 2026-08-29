@@ -1,0 +1,8 @@
+/**
+ * The commit types this repo uses.
+ *
+ * | Type | Gitmoji | Use for     |
+ * | ---- | :-----: | ----------- |
+ * | feat | sparkle | new feature |
+ * | fix  | wrench  | bug fix     |
+ */

@@ -1,0 +1,4 @@
+// Matches every source file under src.
+//
+// - The glob is src/**/*.ts, whose star-slash would end a block comment early,
+//   so this comment cannot be reframed as one.

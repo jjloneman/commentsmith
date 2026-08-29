@@ -1,0 +1,5 @@
+/*
+  An unstarred block comment.
+
+  Its body lines carry no marker at all.
+*/

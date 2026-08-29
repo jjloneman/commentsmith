@@ -1,0 +1,7 @@
+/**
+ * A doc comment carrying a fenced example.
+ *
+ * ```ts
+ * const formatted = renderComment(parseComment(source));
+ * ```
+ */

@@ -1,0 +1,3 @@
+  /**
+   * An indented doc comment, as it would appear inside a function body.
+   */

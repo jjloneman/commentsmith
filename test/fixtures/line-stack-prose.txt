@@ -1,0 +1,2 @@
+// A summary sentence that runs on for a while and therefore wraps across two
+// source lines rather than one.
