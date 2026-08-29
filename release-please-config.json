@@ -1,5 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bump-minor-pre-major": true,
   "changelog-sections": [
     { "section": "✨ Features", "type": "feat" },
     { "section": "🔧 Bug Fixes", "type": "fix" },
@@ -14,6 +15,7 @@
     { "hidden": true, "type": "style" }
   ],
   "include-component-in-tag": false,
+  "initial-version": "0.1.0",
   "packages": {
     ".": {}
   },
