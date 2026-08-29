@@ -143,7 +143,7 @@ depends on nothing.**
 - **`src/cli/`** is a peer adapter for pre-commit hooks, CI, and running after
   Prettier.
 
-Neither adapter invokes the other, so their behaviour cannot drift.
+Neither adapter invokes the other, so their behavior cannot drift.
 
 Conventions for contributors — and for AI sessions — live in
 [CLAUDE.md](CLAUDE.md).

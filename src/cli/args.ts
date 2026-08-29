@@ -2,7 +2,7 @@ import type { LogLevel } from "#core/logger";
 
 import { LOG_LEVELS } from "#core/logger";
 
-/** The level used when `--log-level` is absent or unrecognised. */
+/** The level used when `--log-level` is absent or unrecognized. */
 export const DEFAULT_LOG_LEVEL: LogLevel = "info";
 
 const LOG_LEVEL_FLAG = "--log-level=";
@@ -39,10 +39,10 @@ export const hasFlag = ({
  *   everywhere else, so a user appending `--log-level=debug` to a wrapper's
  *   `--log-level=info` gets the debug output they asked for.
  *
- * - An unrecognised value falls back to the default rather than erroring. A
+ * - An unrecognized value falls back to the default rather than erroring. A
  *   typo in a log flag should not stop the CLI doing its actual job.
  *
- * @returns the requested level, or the default when absent or unrecognised.
+ * @returns the requested level, or the default when absent or unrecognized.
  * @example parseLogLevel(["--log-level=debug"]) // "debug"
  */
 export const parseLogLevel = (
