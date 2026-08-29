@@ -1,0 +1,4 @@
+/// Cast a value to a length.
+///
+/// @param {Number} $value - the value to cast
+/// @return {Number}

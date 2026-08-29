@@ -1,0 +1,5 @@
+// The formatter must not touch these.
+//
+// - @anthropic-ai/sdk is a scoped package, not a JSDoc tag.
+//
+// - @typescript-eslint/consistent-type-imports is a rule name, not a tag.

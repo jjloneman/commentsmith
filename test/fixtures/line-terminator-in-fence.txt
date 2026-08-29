@@ -1,0 +1,5 @@
+// A fenced command that carries the terminator.
+//
+// ```sh
+// rm -rf src/**/*.ts
+// ```

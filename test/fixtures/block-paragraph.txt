@@ -1,0 +1,4 @@
+/*
+ * A block comment with one paragraph that wraps across two source lines to
+ * prove the frame survives.
+ */

@@ -35,7 +35,7 @@ export class UpstreamUnavailableError extends Error {
 }
 
 /**
- * Fetch an upstream resource, normalising every failure mode.
+ * Fetch an upstream resource, normalizing every failure mode.
  *
  * - Both a rejected `fetch` (offline, DNS failure, TLS error) and a non-OK
  *   response become {@link UpstreamUnavailableError}. The rejection path is the
@@ -103,8 +103,59 @@ type ElectronRelease = {
   version: string;
 };
 
+/** A three-part version anywhere inside a range expression. */
+const VS_CODE_FLOOR_VERSION = /(?<tag>\d+\.\d+\.\d+)/u;
+
 /**
- * Read the `engines.vscode` floor and strip its range prefix to a bare tag.
+ * Read the VS Code release tag out of an `engines.vscode` range.
+ *
+ * - **Strict on purpose.** The result is interpolated into a
+ *   raw.githubusercontent URL as a git tag, and this checker reports a failed
+ *   fetch as an upstream outage — a pass. So a lenient parse yields a
+ *   plausible-looking tag, a 404, and a green build with the guard silently
+ *   switched off, which is the one outcome this script exists to prevent.
+ *
+ * - Matching the version *token* rather than stripping known operators also
+ *   drops the trailing half of a compound range: `">=1.103.0 <2.0.0"` used to
+ *   survive as `"1.103.0 <2.0.0"`.
+ *
+ * - A partial range such as `"100"` or `"^1.103"` is legal semver but names no
+ *   VS Code tag, so it must fail here rather than later and quieter.
+ *
+ * - Takes the first version in the expression, which is the floor under npm's
+ *   convention of writing the lower bound first.
+ *
+ * @returns the bare release tag.
+ * @throws Error when the range names no resolvable version.
+ * @example parseVsCodeFloorTag("^1.103.0") // "1.103.0"
+ */
+export const parseVsCodeFloorTag = (
+  /**
+   * The raw `engines.vscode` range.
+   *
+   * @example "^1.103.0"
+   */
+  range: string,
+): string => {
+  const tag = VS_CODE_FLOOR_VERSION.exec(range)?.groups?.tag;
+
+  if (tag === undefined) {
+    /*
+     * Deliberately a plain Error, never UpstreamUnavailableError: a malformed
+     * floor is this repo's bug rather than GitHub's, and the checker tolerates
+     * only the latter.
+     */
+    throw new Error(
+      `engines.vscode ("${range}") names no major.minor.patch version, so no ` +
+        `VS Code release tag can be derived from it.`,
+    );
+  }
+
+  return tag;
+};
+
+/**
+ * Read the `engines.vscode` floor from `package.json` as a bare release tag.
  *
  * @returns the VS Code release tag the floor names.
  * @example resolveVsCodeFloorTag() // "1.103.0"
@@ -114,7 +165,7 @@ export const resolveVsCodeFloorTag = (): string => {
     engines: { vscode: string };
   };
 
-  return engines.vscode.replace(/^[\^~>=\s]+/, "");
+  return parseVsCodeFloorTag(engines.vscode);
 };
 
 /**

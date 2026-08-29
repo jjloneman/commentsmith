@@ -1,0 +1,6 @@
+// A lead sentence, then bullets.
+//
+// - The first point, which wraps across two source lines to exercise the
+//   hanging indent.
+//
+// - The second point.

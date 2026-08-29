@@ -1,0 +1,9 @@
+/**
+ * Build a sink that writes somewhere.
+ *
+ * - No level filtering happens here, so the caller keeps control of it.
+ *
+ * @param channel - the log channel to write to, owned by the caller.
+ * @returns a sink suitable for setLogSink, which forwards to whatever sink is
+ *   active at call time.
+ */

@@ -8,12 +8,12 @@ describe("parseLogLevel", () => {
     expect(parseLogLevel(["src/core/logger.ts"])).toBe("info");
   });
 
-  test("reads a recognised level from the flag", () => {
+  test("reads a recognized level from the flag", () => {
     // Given/When/Then
     expect(parseLogLevel(["--log-level=debug"])).toBe("debug");
   });
 
-  test("falls back rather than erroring on an unrecognised level", () => {
+  test("falls back rather than erroring on an unrecognized level", () => {
     // Given/When - a typo in a log flag
     const level = parseLogLevel(["--log-level=verbose"]);
 

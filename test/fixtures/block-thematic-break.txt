@@ -1,0 +1,7 @@
+/*
+ * A paragraph above the rule.
+ *
+ * ---
+ *
+ * A paragraph below it.
+ */

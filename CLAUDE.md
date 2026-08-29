@@ -10,12 +10,13 @@ top to bottom before editing.
 - [🧰 Tech stack](#-tech-stack)
 - [🗂️ Project layout](#️-project-layout)
 - [🧩 Architecture](#-architecture)
-- [🧱 Comment IR \& transforms](#-comment-ir--transforms)
+- [🧱 Comment intermediate representation \& transforms](#-comment-intermediate-representation--transforms)
 - [📦 Bundling \& module format](#-bundling--module-format)
 - [🎨 Code style guidelines](#-code-style-guidelines)
   - [🏛️ Architecture \& design mindset](#️-architecture--design-mindset)
-  - [💬 Comments — this repo has to practise what it ships](#-comments--this-repo-has-to-practise-what-it-ships)
+  - [💬 Comments — this repo has to practice what it ships](#-comments--this-repo-has-to-practice-what-it-ships)
   - [🗂️ Config files](#️-config-files)
+- [🗣️ Prose \& communication](#️-prose--communication)
 - [✍️ Commit conventions](#️-commit-conventions)
   - [🌿 Branch naming](#-branch-naming)
   - [🏷️ Issues \& PRs](#️-issues--prs)
@@ -63,6 +64,8 @@ attempted restructuring or reframing. That gap is the wedge.
 commentsmith/
 ├── src/
 │   ├── core/                 # Pure formatter — MUST NOT import "vscode"
+│   │   ├── comment/          # The comment vocabulary: parse → CommentDoc
+│   │   │                     # → render
 │   │   └── logger.ts         # Logger port: moduleLogger() + sink + no-op default
 │   ├── extension/            # VS Code adapter
 │   │   ├── main.ts           # activate()/deactivate() — esbuild entry point
@@ -71,8 +74,10 @@ commentsmith/
 │       ├── main.ts           # Entry point (shebang via esbuild banner)
 │       ├── args.ts           # Flag parsing — testable, unlike main.ts
 │       └── logger.ts         # stderr sink
-├── test/                     # Cross-cutting support only (#test/*); per-module
-│                             # *.test.ts live beside their source
+├── test/                     # Cross-cutting support (#test/*) — per-module
+│   │                         # *.test.ts live beside their own source
+│   ├── fixtures/             # Golden comment corpus for the round-trip test
+│   └── helpers/              # Factories and fixture loaders
 ├── scripts/                  # CI helper scripts (coverage PR comment)
 ├── assets/                   # Marketplace icon
 ├── .githooks/                # pre-commit (fix staged) + pre-push (typecheck)
@@ -88,49 +93,129 @@ depends on nothing.**
 - **`src/core/` must never import `vscode`.** That is the load-bearing rule of
   the whole repo. It is what keeps the formatter unit-testable under plain
   Vitest with no extension host, and what lets the CLI and the extension share
-  behaviour byte for byte. Anything that needs the editor API belongs in
+  behavior byte for byte. Anything that needs the editor API belongs in
   `src/extension/`.
 - **The extension calls core in-process** — it does _not_ shell out to the CLI.
   A subprocess would pay ~100–300ms of Node startup on every keypress and turn a
   typed error into a stderr-parsing exercise.
 - **The CLI is a peer adapter, not a dependency of the extension.** Neither
-  invokes the other; both are thin wrappers over the same core, so behaviour
+  invokes the other; both are thin wrappers over the same core, so behavior
   cannot drift.
 - The CLI's `--stdin-filepath` + `--range <start>-<end>` mode is deliberately
   the protocol an editor selection would need, so routing the keybinding through
   the CLI stays possible later without redesign.
 
-## 🧱 Comment IR & transforms
+## 🧱 Comment intermediate representation & transforms
 
-> 🚧 Scaffolded, not yet implemented — the IR lands in
-> [#2](https://github.com/jjloneman/commentsmith/issues/2) and the registry in
-> [#3](https://github.com/jjloneman/commentsmith/issues/3). This section records
-> the intended design so it isn't relitigated.
+> 🚧 The intermediate representation shipped in
+> [#2](https://github.com/jjloneman/commentsmith/issues/2); the registry and
+> presets land in [#3](https://github.com/jjloneman/commentsmith/issues/3), and
+> the transforms in #4–#7. The forward-looking half of this section records
+> intent so it isn't relitigated.
 
-The pipeline is **parse → IR → ordered transforms → render**, the model
-Prettier, Remark, and ESLint all use. It is deliberately **not** a template
-language: a template describes layout given known slots, but "split this
-paragraph into one bullet per sentence" is restructuring, and a template
-language expressive enough for it would be a programming language.
+The pipeline is **parse → intermediate representation → ordered transforms →
+render**, the model Prettier, Remark, and ESLint all use. It is deliberately
+**not** a template language: a template describes layout given known slots, but
+"split this paragraph into one bullet per sentence" is restructuring, and a
+template language expressive enough for it would be a programming language.
 
-The IR has **two independent layers**, and keeping them separate is what makes
-"convert to JSDoc **and** bulletize **and** rewrap" a composition rather than
-three fighting special cases:
+The intermediate representation has **two independent layers**, and keeping them
+separate is what makes "convert to JSDoc **and** bulletize **and** rewrap" a
+composition rather than three fighting special cases. `src/core/comment/` splits
+along the same seam:
 
-- **Frame** —
-  `{ kind: "line" | "block" | "doc", indent, linePrefix, open, close }`. Owns
+```text
+src/core/comment/
+├── types.ts     # CommentDoc, CommentFrame, the Block union — the vocabulary
+├── frame.ts     # parseFrame / renderFramedLines — delimiters, never blocks
+├── body.ts      # block segmentation and render dispatch — blocks, never
+│                # delimiters
+├── list.ts      # bullet and ordered items, and their hanging indents
+├── table.ts     # pipe tables and canonical column padding
+├── parse.ts     # parseComment — the public entry
+├── render.ts    # renderComment — the public exit
+├── errors.ts    # CommentParseError
+└── safety.ts    # containsBlockTerminator
+```
+
+- **Frame** — `{ close, indent, isSingleLine, kind, linePrefix, open }`. Owns
   `//` ↔ `/* */` ↔ `/** */` conversion and the leading `*` column.
+  - **The strings are stored exactly as they appear after the indent**, so
+    rendering is concatenation rather than derivation — `linePrefix` is `" * "`,
+    not `"*"`, and the closer carries its own alignment space. That is what lets
+    the round trip hold with no normalization pass in the middle.
+  - **`kind` is not redundant with the delimiters.** It answers the semantic
+    question — is this a docblock? — leaving room for a triple-slash doc stack
+    to be `kind: "doc"` carrying a line comment's delimiters. The parser cannot
+    make that call yet: `///` is SassDoc, rustdoc, or C# XML doc depending on
+    the language, but a compiler directive in TypeScript, so every slash run
+    reports as `kind: "line"` until the frame knows the language.
+  - **`isSingleLine` is honored asymmetrically.** The renderer collapses only
+    when the body is structurally collapsible (at most one content line) and
+    **never collapses unbidden**: declining an impossible request is
+    correctness, while collapsing something the frame did not ask to collapse is
+    a transform's decision. Without that, a rewrap that grows the body and
+    forgets to clear the flag would crush a paragraph and its bullets onto one
+    line.
 - **Body** —
   `Paragraph | BulletList | OrderedList | CodeFence | TagSection | Table | ThematicBreak`.
   Owns bulletizing, blank-line spacing, hanging indents, rewrapping, and JSDoc
   tags.
+  - **List items are flat, each carrying its own `indent`**, not a tree. Nesting
+    is representable, and no transform yet needs to walk a hierarchy.
+  - **A blank line between JSDoc tags starts a new `TagSection`**, which is why
+    a section needs no tight/loose flag of its own.
 
-**Transforms are pure `(Doc, options) => Doc`**, registered by name and run in
-configured order. A **preset is a named list of transforms plus their options**;
-users compose via `extends` + per-transform overrides, exactly as in ESLint. The
-block vocabulary is Markdown-_ish_, not CommonMark-complete — comments are prose
-plus a few structures, and a full parser would be a large dependency for
-constructs that never appear in a docblock.
+**`renderComment(parseComment(x)) === x` for any comment already in canonical
+form**, proven across `test/fixtures/` by a property test rather than by
+examples. Canonical form is a definition, not a vibe:
+
+- The opener sits alone on its line, every body line is
+  `indent + linePrefix + content`, and the closer sits alone on its line —
+  except a **single-line docblock**, which is canonical too.
+- **Exactly one blank line between blocks**, none leading or trailing.
+- Table columns are padded to their widest cell, counted in **code points, not
+  terminal columns** — a full-width character pads narrower than it displays,
+  and fixing that needs an east-asian-width table, which the moratorium makes a
+  deliberate dependency decision rather than an incidental one.
+- Anything outside canonical form still **parses**; it simply comes back tidied
+  rather than byte-identical. That boundary is what leaves the transforms free
+  to normalize.
+
+**`containsBlockTerminator` is a predicate, not an escaper.** A body containing
+the block terminator cannot be safely reframed into a `/* */` comment — the
+result silently changes what the file parses as, which cost this repo a broken
+build during scaffolding. A transform that finds it must **refuse and report**,
+never escape: escaping changes the text the author wrote, and inside a code
+fence it would be flatly wrong.
+
+**Preserving the author's frame is the default, and stays that way.** The frame
+is captured from source, never derived, so a stack of line comments stays a
+stack, a block stays a block, and a docblock stays a docblock. **Switching
+between forms is opt-in only** — an explicitly configured `frame/convert` — and
+no built-in preset may reframe comments on its own. Silently turning someone's
+`//` stack into a `/* */` block is exactly what makes a formatter untrustworthy;
+the feature is "switch the style **when asked**, among the forms the language
+actually has".
+
+**The frame layer is C-family only, for now.** `//`, `/* */`, and `/** */` are
+hard-coded in `frame.ts`, which covers TS/JS, SCSS, Less, C/C++, C#, Java, Go,
+Rust, Swift, and Kotlin — but not `#` (YAML, Python, shell, TOML), `--` (SQL,
+Lua), `<!-- -->` (HTML, Markdown), or `;` (INI). Widening it is deliberately a
+**frame-only** change: `body.ts`, `list.ts`, and `table.ts` operate on
+prefix-stripped content lines and have never seen a delimiter, so bulletizing
+and rewrapping work on a YAML comment the moment the frame can read one. The
+real design work is not the delimiters but declaring **which forms each language
+has** — a `#` stack cannot be converted into a block comment, because YAML has
+none — plus generalizing `containsBlockTerminator` past the block terminator to
+whatever ends the target syntax.
+
+**Transforms are pure `(CommentDoc, options) => CommentDoc`**, registered by
+name and run in configured order. A **preset is a named list of transforms plus
+their options**; users compose via `extends` + per-transform overrides, exactly
+as in ESLint. The block vocabulary is Markdown-_ish_, not CommonMark-complete —
+comments are prose plus a few structures, and a full parser would be a large
+dependency for constructs that never appear in a docblock.
 
 **Two invariants belong in every transform's test file** from its first commit:
 
@@ -235,6 +320,37 @@ Together they catch most of what golden fixtures miss.
   sorted keys (one positional arg is fine). Default to objects when in doubt;
   boolean/option params are easier to read named. (The sibling broadway repo
   allows two positional params; this repo takes trivia's stricter rule.)
+- **Declare independent bindings in lexicographic order.** When a run of
+  `const`s (module constants, local variables) has no dependency between them,
+  sort them by name — the same rule `eslint-plugin-perfectionist` already
+  enforces on object keys, type members, and imports, applied to declarations it
+  cannot see. A binding that _is_ built from another still follows its
+  dependency; correctness beats alphabet.
+- **Name every capture group you read** — `(?<marker>…)` over `match[1]`. A
+  positional index says nothing about what was captured and silently shifts when
+  a group is inserted ahead of it. Conversely, a group nothing reads should be
+  non-capturing, or dropped: an unused capture is a claim about intent the code
+  does not keep.
+- **A character class beats an alternation of single characters inside a
+  quantifier.** `[\d.]+`, never `(\d+|\.)+` — the second can match the same text
+  many ways, so a failing tail backtracks exponentially. Measured here: 0.0ms
+  versus **5078ms** on a 27-character string, roughly doubling per added
+  character.
+- **Parse strictly for any value handed to an external system.** A permissive
+  pattern fails _later and quieter_ — `resolveVsCodeFloorTag` feeds a git tag
+  into a URL, so a lenient parse yields a plausible-looking tag, a 404, and an
+  "upstream is down" warning that passes the build. Strict matching turns the
+  same broken input into a loud error at the point of the mistake.
+- **Prefer Unicode property escapes where the domain is text, not syntax.**
+  `\p{Letter}` over `[A-Za-z]` for anything a human authored — a tag name in a
+  French or Japanese codebase is still a tag name. Always spell the **long**
+  property name (`\p{Decimal_Number}`, not `\p{Nd}`), and remember `\p{…}` needs
+  the `u` (or `v`) flag.
+  - **Only where it makes sense.** `\s` is already Unicode-aware, so
+    `\p{White_Space}` buys nothing. And a Markdown ordered-list marker really is
+    ASCII digits, so `\d` is correct there — `\p{Decimal_Number}` would admit
+    markers no renderer treats as a list. Widening a pattern that describes
+    _syntax_ is a bug, not an improvement.
 - **No single-line `if`s** — always braces (`curly: ["error", "all"]`). Even
   one-statement blocks.
 - **Breathing room between statements** (`padding-line-between-statements`): a
@@ -286,7 +402,7 @@ Together they catch most of what golden fixtures miss.
   and goes to stdout deliberately via `process.stdout.write`. CI helper scripts
   under `scripts/` are exempt — printing to the job log is their whole job.
 
-### 💬 Comments — this repo has to practise what it ships
+### 💬 Comments — this repo has to practice what it ships
 
 - **No comments that just describe what the code does.** Only comment _why_ —
   non-obvious constraints, workarounds, hidden invariants. Don't reference
@@ -370,6 +486,21 @@ export const createStderrSink = ({
 - **`problemMatcher: []` on the build tasks is deliberate.** VS Code ships no
   `$esbuild` matcher, so naming one is a schema error — and esbuild already
   prints diagnostics with file and line.
+
+## 🗣️ Prose & communication
+
+- **American English everywhere** — prose, code comments, identifiers, commit
+  messages, and issue/PR bodies. The repo was inconsistent until #2 swept it;
+  one stated rule is cheaper than re-deciding per file.
+- **Spell abbreviations out in prose.** "intermediate representation", not "IR"
+  — the reader who needs the document most is the one who does not yet know the
+  shorthand. Identifiers stay short; the words around them do not.
+- **Send files, don't link them, when the user is on mobile.** A markdown link
+  to a local file path renders as tappable but fails in the Claude mobile app
+  over Remote Control, which reports `Unsupported link` because the phone has no
+  access to this machine's filesystem. Attach the file itself when the user
+  needs to read something outside the repo; keep links for repo paths a desktop
+  session will open.
 
 ## ✍️ Commit conventions
 
@@ -566,8 +697,8 @@ here.
     which is the thing the comment was supposed to save them.
   - **A phase spanning several blocks is split with `// And - …`.** When a
     `// Then` makes one assertion, pulls a value out, and asserts again, each
-    block gets its own labelled group with a blank line between — never one
-    dense run under a single label.
+    block gets its own labeled group with a blank line between — never one dense
+    run under a single label.
   - **`// And - …` breaks a phase into groups** when one Given/When/Then covers
     several independent things, one blank line between them.
   - **`// Setup - …` / `// Cleanup - …`** label extra arrange/teardown that

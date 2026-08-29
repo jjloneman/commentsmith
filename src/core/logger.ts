@@ -17,7 +17,7 @@
  * Severity levels, ordered from most to least verbose.
  *
  * - The order is semantic, not alphabetical: {@link isAtOrAboveLevel} compares
- *   by index, so reordering this array changes filtering behaviour.
+ *   by index, so reordering this array changes filtering behavior.
  */
 export const LOG_LEVELS = ["trace", "debug", "info", "warn", "error"] as const;
 
@@ -184,7 +184,7 @@ export const moduleLogger = (
   ) as Logger;
 
 /**
- * Convert a context object into something safely JSON-serialisable.
+ * Convert a context object into something safely JSON-serializable.
  *
  * - A throwable under `error` or `err` is unwrapped to
  *   `{ message, stack, type }`, mirroring pino's `stdSerializers.err`. That is

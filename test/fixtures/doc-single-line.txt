@@ -1,0 +1,1 @@
+/** A one-line doc comment that stays on one line. */

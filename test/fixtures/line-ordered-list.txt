@@ -1,0 +1,5 @@
+// The phases, in order.
+//
+// 1. Parse the comment into its intermediate representation.
+// 2. Run the configured transforms.
+// 3. Render it back to source text.
