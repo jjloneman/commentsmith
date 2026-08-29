@@ -431,6 +431,23 @@ The project follows [SemVer](https://semver.org) and is **pre-stable (0.x)** —
 `feat` bumps the **minor**, a `fix` the **patch**. Versions are made real by
 `vX.Y.Z` git tags.
 
+Two keys in [release-please-config.json](release-please-config.json) enforce
+that and are easy to mistake for noise — **do not remove them**:
+
+- **`initial-version: "0.1.0"`** — release-please defaults a repo's _first_
+  release to `1.0.0` when no prior version exists, which would declare a stable
+  public API before the formatter exists. This bug is invisible in the sibling
+  repo this config was ported from, because that repo already has a released
+  version.
+- **`bump-minor-pre-major: true`** — below `1.0.0`, a breaking change bumps the
+  **minor** instead of promoting to `1.0.0`. Without it the first `feat!` would
+  silently declare the project stable.
+- **`bump-patch-for-minor-pre-major` is deliberately unset**, so a `feat` keeps
+  bumping the minor. The alternative convention (a `feat` bumping the patch)
+  exists because npm reads `^0.1.2` as locking the minor — an argument that
+  applies to published packages, not to a Marketplace extension nobody writes a
+  version range against. Revisit only if the CLI is ever published to npm.
+
 Releases are **fully automated** by
 [`release-please`](https://github.com/googleapis/release-please), which reads
 the commit conventions — this is why they matter beyond tidiness.
