@@ -21,8 +21,14 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # release-please has no native assignee option — assign the owner via a
-      # follow-up step
-      - if: ${{ steps.release.outputs.prs_created == 'true' }}
+      # follow-up step.
+      #
+      # - The explicit `name` is load-bearing. Without it GitHub derives the
+      #   step's display name from `run`, and evaluates that template *before*
+      #   the `if` short-circuits — so on any run where release-please opens no
+      #   PR, `fromJSON` receives an empty string and the whole job errors.
+      - name: 👤 Assign the release PR
+        if: ${{ steps.release.outputs.prs_created == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run:
