@@ -1,0 +1,33 @@
+# pnpm blocks dependency lifecycle/build scripts by default (a supply-chain
+# guard against install-time code execution).
+#
+# - Each package below genuinely needs its postinstall to produce a working
+#   native artifact, so we opt them back in.
+#
+# - An unlisted package that needs a build fails loudly; add it here
+#   deliberately.
+allowBuilds:
+  # Downloads its platform-specific native binary via postinstall; the JS
+  # wrapper shells out to it.
+  #
+  # - Both bundles (extension + CLI) are produced by it, and tsx pulls it in
+  #   transitively.
+  esbuild: true
+
+  # Native Rust resolver behind eslint-import-resolver-typescript /
+  # eslint-plugin-import-x.
+  #
+  # - Installs its platform bindings on postinstall.
+  unrs-resolver: true
+
+# Supply-chain floor: refuse to install any version younger than 7 days, giving
+# the registry time to yank a compromised release before it reaches our
+# lockfile.
+#
+# - Overrides pnpm's built-in 1-day default.
+#
+# - Keep in sync with the Dependabot cooldown in .github/dependabot.yml so
+#   proposed bumps are already old enough.
+#
+# - Value is in minutes.
+minimumReleaseAge: 10080

@@ -1,0 +1,31 @@
+{
+  "extends": "@tsconfig/node-lts/tsconfig.json",
+  "compilerOptions": {
+    /*
+     * `lib` is not additive across `extends`, so these entries mirror
+     * @tsconfig/node-lts (re-sync them if that base bumps).
+     *
+     * - No `DOM`: nothing here runs in a browser. The extension host and the
+     *   CLI are both Node, so a stray `document` should fail typecheck.
+     */
+    "lib": [
+      "ES2024",
+      "ESNext.Array",
+      "ESNext.Collection",
+      "ESNext.Iterator",
+      "ESNext.Promise"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+
+    /*
+     * Typechecking only — esbuild owns emit (see esbuild.config.ts), and
+     * `pnpm typecheck` runs `tsc --noEmit`. `outDir` exists solely so tsc has
+     * somewhere notional to place output it never writes.
+     */
+    "noEmit": true,
+    "outDir": "dist",
+    "rootDir": "."
+  },
+  "include": ["*.ts", "scripts/**/*.ts", "src/**/*", "test/**/*"]
+}

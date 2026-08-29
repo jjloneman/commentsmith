@@ -1,0 +1,102 @@
+# Dependabot config — weekly dependency updates that flow through the standard
+# CI workflow.
+#
+# - Keys within each mapping are sorted alphabetically, matching the repo-wide
+#   lexicographic ordering convention.
+
+updates:
+  - commit-message:
+      # Dependabot doesn't let us override the verb (it always says "bump"), so
+      # the actual subject becomes:
+      #   chore(deps): ⬆️ bump foo from 1.0.0 to 1.0.1
+      prefix: "chore(deps): ⬆️"
+      prefix-development: "chore(deps-dev): ⬆️"
+    # Wait 7 days after a release before proposing it.
+    #
+    # - Keeps the bump past the pnpm `minimumReleaseAge` floor in
+    #   pnpm-workspace.yaml, so the frozen-lockfile CI check passes instead of
+    #   rejecting a too-new version.
+    #
+    # - Keep the two values in sync; they enforce the same policy from
+    #   different directions.
+    cooldown:
+      default-days: 7
+    directory: "/"
+    groups:
+      # Group all patch + minor updates into a single PR each week rather than
+      # churning through dozens of one-line PRs.
+      patch-and-minor:
+        update-types:
+          - "patch"
+          - "minor"
+    ignore:
+      # Hold TypeScript at 6.x.
+      #
+      # - 7.0 is the Go port ("tsgo") and ships no programmatic compiler API.
+      #
+      # - typescript-eslint's parser needs that API, so a 7.x bump breaks
+      #   `pnpm lint` in CI.
+      #
+      # - The extension's comment discovery (#8) wants the same API for
+      #   `ts.getLeadingCommentRanges`, so this hold outlives the lint concern.
+      #
+      # - Only the major is ignored, so 6.x patch/minor bumps still flow.
+      - dependency-name: "typescript"
+        update-types:
+          - "version-update:semver-major"
+
+      # Hold @types/vscode at the `engines.vscode` floor declared in
+      # package.json.
+      #
+      # - The two must move together: bumping the types alone would let code
+      #   compile against an API the minimum supported VS Code lacks, failing at
+      #   runtime for exactly the users the floor exists to include.
+      #
+      # - Raising the floor also means revisiting the esbuild target — see
+      #   scripts/lib/extension-host-target.ts, which CI verifies.
+      #
+      # - Raise all three deliberately, in one PR.
+      - dependency-name: "@types/vscode"
+    labels:
+      - "dependencies"
+    open-pull-requests-limit: 10
+    package-ecosystem: "npm"
+    schedule:
+      day: "monday"
+      interval: "weekly"
+      time: "09:00"
+      timezone: "America/New_York"
+    versioning-strategy: "increase"
+
+  - commit-message:
+      prefix: "chore(actions): ⬆️"
+    # Mirrors the npm cooldown above.
+    #
+    # - Actions resolves a `uses:` ref as a literal git tag, so a compromised
+    #   release reaches CI the moment it is tagged.
+    #
+    # - Every ref here is pinned to an exact vX.Y.Z, which makes each bump a
+    #   reviewable PR, and this gives the registry 7 days to yank one first.
+    cooldown:
+      default-days: 7
+    directory: "/"
+    groups:
+      # Exact pins mean routine action updates arrive as patch-level PRs; group
+      # them into one weekly PR, as the npm block does.
+      #
+      # - Majors stay ungrouped so a breaking action bump gets its own review.
+      patch-and-minor:
+        update-types:
+          - "patch"
+          - "minor"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    package-ecosystem: "github-actions"
+    schedule:
+      day: "monday"
+      interval: "weekly"
+      time: "09:00"
+      timezone: "America/New_York"
+
+version: 2
