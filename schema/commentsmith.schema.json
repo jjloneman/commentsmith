@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Configuration for Commentsmith, a configurable comment formatter.",
+  "properties": {
+    "extends": {
+      "description": "Preset names to inherit from, applied left to right so a later entry wins.",
+      "items": {
+        "description": "A preset name, such as bullets.",
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "printWidth": {
+      "default": 80,
+      "description": "The column comment body text is wrapped to.",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "transforms": {
+      "description": "The transforms to run, in the order they run in. Order is significant: each transform sees what the previous one produced.",
+      "items": {
+        "additionalProperties": false,
+        "description": "A transform to run, and the options to run it with.",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "description": "Whether to run this transform. Set to false to suppress an entry inherited from a preset without restating the rest of its pipeline.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "The registered transform's name, such as body/rewrap.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "options": {
+            "additionalProperties": true,
+            "description": "Options merged over the transform's own defaults. The merge is shallow, so a nested value is replaced rather than combined.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "title": "Commentsmith configuration",
+  "type": "object"
+}

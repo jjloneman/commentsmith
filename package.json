@@ -19,7 +19,7 @@
       }
     ]
   },
-  "description": "A configurable comment formatter for VS Code and the command line — reshape block, line, and JSDoc comments to a style you define",
+  "description": "A configurable comment formatter for VS Code and the command line — reshape block, line, and JSDoc comments to a style you define.",
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@tsconfig/node-lts": "24.0.1",
@@ -74,14 +74,16 @@
   },
   "scripts": {
     "build": "tsx esbuild.config.ts",
-    "check": "pnpm lint:fix && pnpm format && pnpm typecheck && pnpm check:host-target",
+    "check": "pnpm lint:fix && pnpm format && pnpm typecheck && pnpm check:host-target && pnpm check:schema",
     "check:host-target": "tsx scripts/check-extension-host-target.ts",
+    "check:schema": "tsx scripts/check-config-schema.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "prepare": "git config core.hooksPath .githooks || true",
     "prune-branches": "git fetch --prune && pnpm dlx git-removed-branches --force --prune",
+    "schema:write": "tsx scripts/write-config-schema.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",

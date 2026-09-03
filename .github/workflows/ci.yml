@@ -35,6 +35,11 @@ jobs:
       # fail, so an upstream outage can't break CI.
       - run: pnpm check:host-target
 
+      # Verifies the published JSON Schema still matches the Config type it
+      # is derived from. Everything compared is in the tree, so a mismatch is
+      # always a real failure.
+      - run: pnpm check:schema
+
       # Coverage only on PRs, where it feeds the report comment below; plain
       # tests on main pushes, where nothing consumes the report.
       - if: github.event_name != 'pull_request'
