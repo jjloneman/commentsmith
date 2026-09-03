@@ -19,7 +19,7 @@
       }
     ]
   },
-  "description": "A configurable comment formatter for VS Code and the command line — reshape block, line, and JSDoc comments to a style you define.",
+  "description": "💬 A configurable comment formatter for VS Code and the command line — reshape block, line, and JSDoc comments to a style you define.",
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@tsconfig/node-lts": "24.0.1",
