@@ -66,6 +66,7 @@ commentsmith/
 │   ├── core/                 # Pure formatter — MUST NOT import "vscode"
 │   │   ├── comment/          # The comment vocabulary: parse → CommentDoc
 │   │   │                     # → render
+│   │   ├── config/           # Config, presets, transform registry, pipeline
 │   │   └── logger.ts         # Logger port: moduleLogger() + sink + no-op default
 │   ├── extension/            # VS Code adapter
 │   │   ├── main.ts           # activate()/deactivate() — esbuild entry point
@@ -79,6 +80,7 @@ commentsmith/
 │   ├── fixtures/             # Golden comment corpus for the round-trip test
 │   └── helpers/              # Factories and fixture loaders
 ├── scripts/                  # CI helper scripts (coverage PR comment)
+├── schema/                   # Emitted config JSON Schema (pnpm schema:write)
 ├── assets/                   # Marketplace icon
 ├── .githooks/                # pre-commit (fix staged) + pre-push (typecheck)
 ├── esbuild.config.ts
@@ -108,10 +110,11 @@ depends on nothing.**
 ## 🧱 Comment intermediate representation & transforms
 
 > 🚧 The intermediate representation shipped in
-> [#2](https://github.com/jjloneman/commentsmith/issues/2); the registry and
-> presets land in [#3](https://github.com/jjloneman/commentsmith/issues/3), and
-> the transforms in #4–#7. The forward-looking half of this section records
-> intent so it isn't relitigated.
+> [#2](https://github.com/jjloneman/commentsmith/issues/2) and the config layer
+> — registry, pipeline, presets, schema — in
+> [#3](https://github.com/jjloneman/commentsmith/issues/3); the transforms land
+> in #4–#7. The forward-looking half of this section records intent so it isn't
+> relitigated.
 
 The pipeline is **parse → intermediate representation → ordered transforms →
 render**, the model Prettier, Remark, and ESLint all use. It is deliberately
@@ -210,12 +213,77 @@ has** — a `#` stack cannot be converted into a block comment, because YAML has
 none — plus generalizing `containsBlockTerminator` past the block terminator to
 whatever ends the target syntax.
 
-**Transforms are pure `(CommentDoc, options) => CommentDoc`**, registered by
-name and run in configured order. A **preset is a named list of transforms plus
-their options**; users compose via `extends` + per-transform overrides, exactly
-as in ESLint. The block vocabulary is Markdown-_ish_, not CommonMark-complete —
+**Transforms are pure `({ doc, options }) => CommentDoc`**, registered by name
+and run in configured order. A **preset is a named list of transforms plus their
+options**; users compose via `extends` + per-transform overrides, exactly as in
+ESLint. The block vocabulary is Markdown-_ish_, not CommonMark-complete —
 comments are prose plus a few structures, and a full parser would be a large
 dependency for constructs that never appear in a docblock.
+
+`src/core/config/` splits by phase the way `comment/` splits by layer:
+
+```text
+src/core/config/
+├── types.ts     # Config, TransformEntry, Transform — the vocabulary
+├── errors.ts    # ConfigError, TransformError
+├── registry.ts  # defineTransform + createTransformRegistry
+├── presets.ts   # BUILT_IN_PRESETS
+├── resolve.ts   # resolveConfig — extends chains, merging, cycle detection
+├── pipeline.ts  # runPipeline — applies resolved transforms in order
+├── schema.ts    # CONFIG_JSON_SCHEMA
+└── validate.ts  # parseConfig — untrusted value → Config
+```
+
+- **The transform list is an array, not an object keyed by name.** Run order is
+  semantic, and an object would be sorted alphabetically by this repo's own
+  perfectionist rules — quietly reordering a pipeline into incorrectness.
+
+- **The registry is a value the caller passes in**, not a module-level map that
+  transforms register into on import. A registration global leaks between tests,
+  hides the pipeline's real inputs at its call site, and forces every adapter to
+  share one set of transforms.
+
+- **Merge rules, stated once so nothing re-derives them:** scalars are
+  last-wins; a transform entry whose name is already present merges its options
+  over the inherited ones and **keeps the inherited position**; a new name
+  appends; `enabled: false` drops the entry during resolution rather than
+  leaving a flag the runner must remember to check. Option merging is
+  **shallow**, because a deep merge would leave a user unable to clear an
+  inherited nested value.
+
+- **A name repeated within a single list is refused, not merged.** Collapsing
+  the two loses a step silently, and a second entry carrying `enabled: false`
+  switched off the first — so asking to run a transform twice produced an empty
+  pipeline. Running one twice stays a reasonable thing to want; it needs a way
+  to address one occurrence rather than the name, which is a feature rather than
+  a merge rule.
+
+- **`printWidth` is seeded into each transform's options by the runner**,
+  between the transform's own defaults and the entry's options. It is a
+  document-level setting a body transform has to honor, and nothing else would
+  carry it there — without the seeding it would validate, merge, default, and
+  log, then quietly do nothing. The ordering means a per-entry `printWidth`
+  still wins, so one step can wrap to a different column.
+
+- **`resolveConfig` takes its preset table as a parameter**, so a config file's
+  own presets join the built-ins without core knowing that files exist. An
+  `extends` cycle reports the whole path rather than hanging.
+
+- **The JSON Schema is hand-authored and kept in sync by `tsc`**, not by a
+  generator. Each `properties` object is written
+  `satisfies Record<keyof T, JsonSchemaNode>` with
+  `additionalProperties: false`, so a field added to a type without a schema
+  entry — or an entry naming a field the type lacks — fails typecheck. A
+  generator would add a moratorium-bound dev dependency and shape the schema to
+  its own conventions rather than to what a settings UI renders well.
+  `validate.ts` reads its accepted key names out of the schema, so the runtime
+  and editor-facing halves cannot drift.
+
+- **`schema/commentsmith.schema.json` is emitted, not edited.**
+  `pnpm schema:write` writes it and `pnpm check:schema` fails on drift, the same
+  shape as the extension-host-target check. `schema/` is in `.prettierignore`:
+  Prettier collapses short arrays that `JSON.stringify` expands, so letting both
+  format the file makes `pnpm format` and `pnpm check:schema` undo each other.
 
 **Two invariants belong in every transform's test file** from its first commit:
 
@@ -622,8 +690,8 @@ are intentionally fast and split by stage:
 
 `pnpm build` is deliberately left to CI. The convenience scripts back the same
 tools: `pnpm format` / `pnpm format:check`, and **`pnpm check`** (`lint:fix` +
-`format` + `typecheck` + `check:host-target`) for a manual pre-push sweep —
-prefer that single gate over running each individually.
+`format` + `typecheck` + `check:host-target` + `check:schema`) for a manual
+pre-push sweep — prefer that single gate over running each individually.
 
 CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs lint, typecheck,
 format:check, tests, and build on every PR and `main` push — the source of
