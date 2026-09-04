@@ -6,22 +6,10 @@ import type { Transform } from "./types";
 
 import { ConfigError } from "./errors";
 import {
-  BUILT_IN_TRANSFORMS,
   createTransformRegistry,
   defineTransform,
   describeRegistered,
 } from "./registry";
-
-describe("BUILT_IN_TRANSFORMS", () => {
-  test("ships empty, and still builds a usable registry", () => {
-    // Given/When - the transforms Commentsmith currently ships
-    const registry = createTransformRegistry(BUILT_IN_TRANSFORMS);
-
-    // Then - an empty pipeline is a working state, not a broken one
-    expect(BUILT_IN_TRANSFORMS).toHaveLength(0);
-    expect(registry.size).toBe(0);
-  });
-});
 
 describe("defineTransform", () => {
   test("preserves the definition it was given", () => {

@@ -121,7 +121,7 @@ export const runPipeline = ({
   /**
    * The transforms available to run.
    *
-   * @example createTransformRegistry(BUILT_IN_TRANSFORMS)
+   * @example createTransformRegistry([rewrap])
    */
   registry: TransformRegistry;
 }): CommentDoc =>
