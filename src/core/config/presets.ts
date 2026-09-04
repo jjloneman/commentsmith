@@ -20,17 +20,17 @@ import type { PresetTable } from "#core/config/types";
  *   load-bearing documentation: it says each one is that baseline plus
  *   transforms, not a separate pipeline.
  *
- * - **`bullets` extends `preserve`, not `wrap`, even though it currently runs
- *   the same list.** Resolution keeps an inherited entry at its inherited
+ * - **`bullets` extends `preserve`, not `wrap`, even though its list ends with
+ *   the same transform.** Resolution keeps an inherited entry at its inherited
  *   position and appends new names, so a `bullets` extending `wrap` would place
- *   sentence bulletizing *after* wrapping once it lands — and the bullets it
- *   produced would never be wrapped. Order cannot be expressed through
- *   `extends`, so the preset that cares about order states its own list.
+ *   sentence bulletizing *after* wrapping — and the bullets it produced would
+ *   never be wrapped. Order cannot be expressed through `extends`, so the
+ *   preset that cares about order states its own list.
  */
 export const BUILT_IN_PRESETS = {
   bullets: {
     extends: ["preserve"],
-    transforms: [{ name: "body/rewrap" }],
+    transforms: [{ name: "body/bulletize-sentences" }, { name: "body/rewrap" }],
   },
   preserve: {
     transforms: [],

@@ -30,6 +30,16 @@ describe("BUILT_IN_PRESETS", () => {
     expect(BUILT_IN_PRESETS.bullets.extends).not.toContain("wrap");
   });
 
+  test("bulletizes before wrapping in the flagship preset", () => {
+    // Given/When - the order is the whole reason this preset states its own list
+    const names = BUILT_IN_PRESETS.bullets.transforms.map(
+      (entry) => entry.name,
+    );
+
+    // Then - wrapping last is what wraps the bullets bulletizing just produced
+    expect(names).toEqual(["body/bulletize-sentences", "body/rewrap"]);
+  });
+
   test("resolves every built-in preset to a pipeline that cannot reframe", () => {
     // Given - every preset a user can name without writing one
     const names = Object.keys(BUILT_IN_PRESETS);
