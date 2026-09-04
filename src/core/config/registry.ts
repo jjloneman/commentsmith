@@ -18,15 +18,6 @@ export type TransformRegistry = ReadonlyMap<
 >;
 
 /**
- * The transforms Commentsmith ships with.
- *
- * - Empty until the first transform lands. The pipeline is written to be
- *   correct with zero transforms, so this is a working state rather than a
- *   placeholder.
- */
-export const BUILT_IN_TRANSFORMS: readonly TransformDefinition[] = [];
-
-/**
  * Declare a transform, keeping its precise options type at the definition site.
  *
  * - The registry is heterogeneous — every transform has a different options
@@ -66,13 +57,13 @@ export const defineTransform = <Options extends TransformOptions>(
  *
  * @returns a read-only lookup from name to definition.
  * @throws ConfigError when two definitions share a name.
- * @example createTransformRegistry(BUILT_IN_TRANSFORMS).size // 0
+ * @example createTransformRegistry([]).size // 0
  */
 export const createTransformRegistry = (
   /**
    * The definitions to register, in any order.
    *
-   * @example BUILT_IN_TRANSFORMS
+   * @example [rewrap]
    */
   definitions: readonly TransformDefinition[],
 ): TransformRegistry => {

@@ -7,7 +7,7 @@ import type {
 } from "./types";
 
 import { parseList, readListKind, renderList } from "./list";
-import { isTableStart, parseTable, renderTable } from "./table";
+import { isTableRow, isTableStart, parseTable, renderTable } from "./table";
 
 /**
  * The body layer — a comment's contents, segmented into blocks.
@@ -42,8 +42,13 @@ const CODE_FENCE = /^(?<fence>`{3,}|~{3,})(?<info>.*)$/;
 const JSDOC_TAG =
   /^(?<name>@\p{Letter}[\p{Letter}\p{Decimal_Number}_-]*)(?=\s|$)(?<text>.*)$/u;
 
-/** The indent a tag's continuation lines hang at. */
-const TAG_HANGING_INDENT = "  ";
+/**
+ * The indent a tag's continuation lines hang at.
+ *
+ * - Exported so a transform can budget for it rather than re-spelling the
+ *   width, which is how the two would drift apart.
+ */
+export const TAG_HANGING_INDENT = "  ";
 
 /** A rule made of dashes, asterisks, or underscores. */
 const THEMATIC_BREAK = /^(?<marker>-{3,}|\*{3,}|_{3,})\s*$/;
@@ -167,7 +172,59 @@ const parseTagSection = ({
   return { block, nextIndex: index };
 };
 
-/** Whether a line opens a block other than a paragraph. */
+/**
+ * Whether a line, read on its own, opens a block other than a paragraph.
+ *
+ * - Exported because a transform that moves line breaks has to know which text
+ *   changes meaning at the start of a line. Reflowing a paragraph can push a
+ *   `-` from mid-sentence to column zero, and prose silently becomes a list on
+ *   the next parse — so the wrapper asks the parser rather than keeping its own
+ *   copy of these rules.
+ *
+ * - A table is deliberately absent: it is recognized from its delimiter row,
+ *   so no single line opens one.
+ *
+ * @returns `true` when the line would be read as a block opener.
+ * @example opensBlock("- a bullet") // true
+ */
+export const opensBlock = (line: string): boolean =>
+  CODE_FENCE.test(line) ||
+  THEMATIC_BREAK.test(line) ||
+  JSDOC_TAG.test(line) ||
+  readListKind(line) !== undefined;
+
+/**
+ * Stands in for whatever text might follow, when probing a line's opening.
+ *
+ * - A list marker opens a list only when something follows it, so asking
+ *   whether a bare `-` opens a block answers the wrong question.
+ */
+const FOLLOWING_TEXT_PROBE = "x";
+
+/**
+ * Whether beginning a line with this text could change what the body parses as.
+ *
+ * - This is {@link opensBlock}'s question asked from a transform's side, and it
+ *   is deliberately wider in two ways. It probes with a following word, because
+ *   a marker alone opens nothing but a marker with text after it does. And it
+ *   rejects a leading pipe, because a table is recognized from a **pair** of
+ *   lines — so a reflow that puts one pipe line under another manufactures a
+ *   table, which no single-line predicate can see coming.
+ *
+ * - Conservative on purpose: a caller cannot know at break time what else will
+ *   land on the line. The cost of a false positive is a line kept one atom
+ *   longer than it had to be; the cost of a false negative is prose silently
+ *   becoming a list.
+ *
+ * @returns `true` when starting a line with this text would risk a new block.
+ * @example couldOpenBlock("-") // true
+ */
+export const couldOpenBlock = (text: string): boolean =>
+  isTableRow(text) ||
+  opensBlock(text) ||
+  opensBlock(`${text} ${FOLLOWING_TEXT_PROBE}`);
+
+/** Whether a line opens a block other than a paragraph, tables included. */
 const startsBlock = ({
   index,
   lines,
@@ -177,12 +234,7 @@ const startsBlock = ({
 
   /** Every body line. */
   lines: string[];
-}): boolean =>
-  CODE_FENCE.test(lines[index]) ||
-  THEMATIC_BREAK.test(lines[index]) ||
-  JSDOC_TAG.test(lines[index]) ||
-  readListKind(lines[index]) !== undefined ||
-  isTableStart({ index, lines });
+}): boolean => opensBlock(lines[index]) || isTableStart({ index, lines });
 
 /** Parse prose up to the next blank line or block opener. */
 const parseParagraph = ({

@@ -117,9 +117,23 @@ export const parseList = ({
   return { block: { isLoose, items, type: listKind }, nextIndex: index };
 };
 
+/**
+ * The indent an item's continuation lines hang at.
+ *
+ * - The marker and the space after it are what the continuation lines have to
+ *   clear, so the hanging width is derived from the marker rather than fixed.
+ *   Exported so a transform can budget for it instead of re-deriving it, which
+ *   is how the two would drift apart.
+ *
+ * @returns the whitespace continuation lines are indented by.
+ * @example listHangingIndent({ indent: "", lines: [], marker: "-" }) // "  "
+ */
+export const listHangingIndent = (item: ListItem): string =>
+  " ".repeat(item.marker.length + 1);
+
 /** Render one item, hanging its continuation lines under its first. */
 const renderItem = (item: ListItem): string[] => {
-  const hanging = " ".repeat(item.marker.length + 1);
+  const hanging = listHangingIndent(item);
   const [firstLine, ...continuation] = item.lines;
 
   return [

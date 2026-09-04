@@ -22,6 +22,18 @@ const MINIMUM_COLUMN_WIDTH = 3;
 /** Any line that could be a table row. */
 const TABLE_ROW = /^\s*\|/;
 
+/**
+ * Whether a line could serve as a table's row or its delimiter line.
+ *
+ * - Exported for the wrapper rather than for the parser: a table is the one
+ *   block recognized from a *pair* of lines, so a reflow that puts a pipe line
+ *   under another one manufactures a table nobody wrote.
+ *
+ * @returns `true` when the line begins a pipe-delimited row.
+ * @example isTableRow("| a | b |") // true
+ */
+export const isTableRow = (line: string): boolean => TABLE_ROW.test(line);
+
 /** Split a row into trimmed cells, dropping its outer pipes. */
 const splitRow = (line: string): string[] =>
   line
