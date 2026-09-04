@@ -1,5 +1,6 @@
 import type { TransformDefinition } from "#core/config/types";
 
+import { bulletize } from "#core/transforms/bulletize";
 import { rewrap } from "#core/transforms/rewrap";
 
 /**
@@ -15,4 +16,7 @@ import { rewrap } from "#core/transforms/rewrap";
  * - It is a plain list, not a barrel: nothing is re-exported through it, and a
  *   caller wanting one transform imports that transform.
  */
-export const BUILT_IN_TRANSFORMS: readonly TransformDefinition[] = [rewrap];
+export const BUILT_IN_TRANSFORMS: readonly TransformDefinition[] = [
+  bulletize,
+  rewrap,
+];
