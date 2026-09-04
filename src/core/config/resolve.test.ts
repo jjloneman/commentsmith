@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import type { PresetTable } from "./types";
 
 import { ConfigError } from "./errors";
+import { BUILT_IN_PRESETS } from "./presets";
 import { resolveConfig } from "./resolve";
 import { DEFAULT_PRINT_WIDTH } from "./types";
 
@@ -301,10 +302,14 @@ describe("resolveConfig", () => {
     // Given/When - no preset table supplied
     const resolved = resolveConfig({ config: { extends: ["bullets"] } });
 
-    // Then - the built-ins resolved without the caller naming them
-    expect(resolved).toEqual({
-      printWidth: DEFAULT_PRINT_WIDTH,
-      transforms: [],
-    });
+    /*
+     * Then - the built-ins resolved without the caller naming them. The
+     * pipeline is compared against the preset rather than spelled out, so
+     * populating a built-in stays a preset change rather than a test failure.
+     */
+    expect(resolved.printWidth).toBe(DEFAULT_PRINT_WIDTH);
+    expect(resolved.transforms.map((entry) => entry.name)).toEqual(
+      BUILT_IN_PRESETS.bullets.transforms.map((entry) => entry.name),
+    );
   });
 });

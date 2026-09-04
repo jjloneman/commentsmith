@@ -12,21 +12,32 @@ import type { PresetTable } from "#core/config/types";
 /**
  * Every preset available to `extends` out of the box.
  *
- * - `bullets` extends `preserve` rather than restating it. The inheritance is
- *   load-bearing documentation: it says the flagship preset is the
- *   round-tripping baseline plus transforms, not a separate pipeline.
+ * - `preserve` is the round-tripping baseline and stays empty permanently —
+ *   parse then render already round-trips, so the empty pipeline *is* the
+ *   preset rather than a stub of one.
  *
- * - Both ship with empty transform lists until the transforms themselves land.
- *   `preserve` stays empty permanently — parse then render already round-trips,
- *   so the empty pipeline *is* the preset rather than a stub of one.
+ * - Every other preset extends it rather than restating it. The inheritance is
+ *   load-bearing documentation: it says each one is that baseline plus
+ *   transforms, not a separate pipeline.
+ *
+ * - **`bullets` extends `preserve`, not `wrap`, even though it currently runs
+ *   the same list.** Resolution keeps an inherited entry at its inherited
+ *   position and appends new names, so a `bullets` extending `wrap` would place
+ *   sentence bulletizing *after* wrapping once it lands — and the bullets it
+ *   produced would never be wrapped. Order cannot be expressed through
+ *   `extends`, so the preset that cares about order states its own list.
  */
 export const BUILT_IN_PRESETS = {
   bullets: {
     extends: ["preserve"],
-    transforms: [],
+    transforms: [{ name: "body/rewrap" }],
   },
   preserve: {
     transforms: [],
+  },
+  wrap: {
+    extends: ["preserve"],
+    transforms: [{ name: "body/rewrap" }],
   },
 } satisfies PresetTable;
 
