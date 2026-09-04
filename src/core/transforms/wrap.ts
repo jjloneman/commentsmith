@@ -1,4 +1,5 @@
 import { couldOpenBlock, opensBlock } from "#core/comment/body";
+import { readSpanEnd } from "#core/transforms/inline";
 
 /**
  * The wrapping engine — atoms, measurement, and greedy line filling.
@@ -20,15 +21,6 @@ import { couldOpenBlock, opensBlock } from "#core/comment/body";
  *   re-wrapping an already-wrapped block reproduce it exactly.
  */
 
-/** Escapes the character after it, inside a link's brackets. */
-const BACKSLASH = "\\";
-
-/** Opens and closes an inline code span. */
-const BACKTICK = "`";
-
-/** Precedes a link's opening bracket to make it an image. */
-const BANG = "!";
-
 /**
  * Whitespace, which is what separates one atom from the next.
  *
@@ -38,192 +30,15 @@ const BANG = "!";
 const WHITESPACE = /\s/;
 
 /**
- * The index just past a backtick-delimited code span.
- *
- * - A span closes on a backtick run of **exactly** the opening run's length,
- *   which is CommonMark's rule and the reason a longer run can be used to
- *   quote a shorter one.
- *
- * @returns the end index, or `undefined` when the run never closes.
- */
-const readCodeSpanEnd = ({
-  start,
-  text,
-}: {
-  /** Index of the first backtick. @example 4 */
-  start: number;
-
-  /** The text being scanned. @example "see `foo` here" */
-  text: string;
-}): number | undefined => {
-  let opening = start;
-
-  while (text[opening] === BACKTICK) {
-    opening += 1;
-  }
-
-  const fenceLength = opening - start;
-
-  let index = opening;
-
-  while (index < text.length) {
-    if (text[index] !== BACKTICK) {
-      index += 1;
-      continue;
-    }
-
-    let closing = index;
-
-    while (text[closing] === BACKTICK) {
-      closing += 1;
-    }
-
-    if (closing - index === fenceLength) {
-      return closing;
-    }
-
-    index = closing;
-  }
-
-  return undefined;
-};
-
-/**
- * The index just past a bracketed run, honoring nesting and escapes.
- *
- * - Nesting matters because an image can sit inside a link's text, so counting
- *   depth is the difference between one atom and a truncated one.
- *
- * @returns the end index, or `undefined` when the bracket never closes.
- */
-const readBracketedEnd = ({
-  close,
-  open,
-  start,
-  text,
-}: {
-  /** The closing character. @example "]" */
-  close: string;
-
-  /** The opening character, expected at `start`. @example "[" */
-  open: string;
-
-  /** Index of the opening character. @example 0 */
-  start: number;
-
-  /** The text being scanned. @example "[a link](target)" */
-  text: string;
-}): number | undefined => {
-  let depth = 0;
-  let index = start;
-
-  while (index < text.length) {
-    const character = text[index];
-
-    if (character === BACKSLASH) {
-      index += 2;
-      continue;
-    }
-
-    if (character === open) {
-      depth += 1;
-    } else if (character === close) {
-      depth -= 1;
-
-      if (depth === 0) {
-        return index + 1;
-      }
-    }
-
-    index += 1;
-  }
-
-  return undefined;
-};
-
-/**
- * The index just past a Markdown link or image.
- *
- * - Covers the inline form and both reference forms. A bare `[text]` followed
- *   by neither is **not** a link, so it falls back to ordinary word splitting
- *   rather than swallowing the rest of the paragraph.
- *
- * @returns the end index, or `undefined` when this is not a link.
- */
-const readLinkEnd = ({
-  start,
-  text,
-}: {
-  /** Index of the `!` or `[` that opens it. @example 0 */
-  start: number;
-
-  /** The text being scanned. @example "[a link](target)" */
-  text: string;
-}): number | undefined => {
-  const labelStart = text[start] === BANG ? start + 1 : start;
-
-  if (text[labelStart] !== "[") {
-    return undefined;
-  }
-
-  const labelEnd = readBracketedEnd({
-    close: "]",
-    open: "[",
-    start: labelStart,
-    text,
-  });
-
-  if (labelEnd === undefined) {
-    return undefined;
-  }
-
-  if (text[labelEnd] === "(") {
-    return readBracketedEnd({ close: ")", open: "(", start: labelEnd, text });
-  }
-
-  if (text[labelEnd] === "[") {
-    return readBracketedEnd({ close: "]", open: "[", start: labelEnd, text });
-  }
-
-  return undefined;
-};
-
-/**
- * The index just past whichever unbreakable construct starts here.
- *
- * @returns the end index, or `undefined` when no construct starts here.
- */
-const readSpanEnd = ({
-  start,
-  text,
-}: {
-  /** Where to look. @example 0 */
-  start: number;
-
-  /** The text being scanned. @example "`code`" */
-  text: string;
-}): number | undefined => {
-  if (text[start] === BACKTICK) {
-    return readCodeSpanEnd({ start, text });
-  }
-
-  if (text[start] === "[" || text[start] === BANG) {
-    return readLinkEnd({ start, text });
-  }
-
-  return undefined;
-};
-
-/**
  * Split text into the units a line is filled with.
  *
  * - An atom is a run of non-whitespace, **extended through any code span or
  *   link it meets** so a construct carrying spaces stays one unit. Splitting
  *   one across lines produces text that no longer renders as what it was.
  *
- * - The scan is a single left-to-right pass rather than a pattern with
- *   alternating quantifiers, which is what keeps a pathological input from
- *   backtracking.
+ * - Which constructs are indivisible is not decided here: `inline.ts` owns
+ *   that, so the wrapper and the sentence splitter cannot disagree about
+ *   where a code span ends.
  *
  * @returns the atoms, in order, none of them empty.
  * @example splitAtoms("see `a b` now") // ["see", "`a b`", "now"]
