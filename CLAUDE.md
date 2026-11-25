@@ -45,8 +45,8 @@ attempted restructuring or reframing. That gap is the wedge.
 - Node `>=26` (system node — no `nvm` / `.nvmrc`).
 - TypeScript 6 (strict, `@tsconfig/node-lts` base, `module: ESNext` /
   `moduleResolution: bundler`, `--noEmit`).
-- `pnpm` — `packageManager` field pinned; `save-exact=true`, so **no caret
-  ranges ever enter `package.json`**.
+- `pnpm` 12 — `packageManager` field pinned; `saveExact: true` in
+  `pnpm-workspace.yaml`, so **no caret ranges ever enter `package.json`**.
 - esbuild — bundles both entry points; owns emit, since tsc is typecheck-only.
 - Vitest + `@vitest/coverage-v8` — one Node project, no browser tier.
 - ESLint v10 (flat config, written in TypeScript via `jiti`) +
