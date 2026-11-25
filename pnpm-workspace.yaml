@@ -31,3 +31,9 @@ allowBuilds:
 #
 # - Value is in minutes.
 minimumReleaseAge: 10080
+
+# Write exact versions on `pnpm add`, so no caret range ever enters
+# package.json.
+#
+# - pnpm reads this here, not from `.npmrc`, which it ignores for this setting.
+saveExact: true
